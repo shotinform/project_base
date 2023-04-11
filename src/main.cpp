@@ -101,6 +101,8 @@ ProgramState *programState;
 
 void DrawImGui(ProgramState *programState);
 
+double remainder_double(double time, long i);
+
 int main() {
     // glfw: initialize and configure
     // ------------------------------
@@ -173,6 +175,12 @@ int main() {
 
     Model cottage("resources/objects/Suburban House/HouseSuburban/HouseSuburban.obj");
     cottage.SetShaderTextureNamePrefix("material.");
+
+    Model road("resources/objects/RoadText1/RuaText1.obj");
+    road.SetShaderTextureNamePrefix("material.");
+
+    Model car("resources/objects/car2/Off-Road.obj");
+    road.SetShaderTextureNamePrefix("material.");
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(10.0f, 10.0, 0.0);
@@ -260,6 +268,27 @@ int main() {
 
         cottage.Draw(ourShader);
 
+        // model matrix for road
+        for (int i=0; i < 16; i++)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(-9.8f + i * 2.82f, -8.69f, -5.5f));
+            model = glm::scale(model, glm::vec3(0.2f));
+            ourShader.setMat4("model", model);
+            road.Draw(ourShader);
+        }
+        // model matrix for car
+        double pace = 7.0f;
+        double position = -10.0f + remainder_double(pace*glfwGetTime(), 44);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(position, -8.68, -5.0f));
+        model = glm::rotate(model, 1.57f, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(0.25));
+        ourShader.setMat4("model", model);
+
+        car.Draw(ourShader);
+
 //        model = glm::mat4(1.0f);
 //        model = glm::translate(model, programState->backpackPosition);
 //        model = glm::scale(model, glm::vec3(programState->backpackScale));
@@ -267,8 +296,6 @@ int main() {
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
-
-
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -285,6 +312,10 @@ int main() {
     // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
+}
+
+double remainder_double(double x, long y) {
+    return x - ((long)(x/y)) * y;
 }
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
