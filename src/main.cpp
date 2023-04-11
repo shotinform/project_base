@@ -165,9 +165,14 @@ int main() {
 
     // load models
     // -----------
-    Model ourModel("resources/objects/floating island 2/floating_island_exp2/4.obj");
-    ourModel.SetShaderTextureNamePrefix("material.");
+    Model island("resources/objects/floating island 2/floating_island_exp2/4.obj");
+    island.SetShaderTextureNamePrefix("material.");
 
+    Model tavern("resources/objects/tavern/Tavern/Tavern.obj");
+    tavern.SetShaderTextureNamePrefix("material.");
+
+    Model cottage("resources/objects/Suburban House/HouseSuburban/HouseSuburban.obj");
+    cottage.SetShaderTextureNamePrefix("material.");
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(10.0f, 10.0, 0.0);
@@ -230,14 +235,35 @@ int main() {
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        // render the loaded model
+        // model matrix for island
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model,
                                glm::vec3(-30.0f, 135.0f, -31.0f)); // translate it down so it's at the center of the scene
         //model = glm::rotate(model, (float)3.14, glm::vec3(1.0f, 0.0f, 0.0f));
         model = glm::scale(model, glm::vec3(1));    // it's a bit too big for our scene, so scale it down
         ourShader.setMat4("model", model);
-        ourModel.Draw(ourShader);
+        island.Draw(ourShader);
+
+        // model matrix for tavern
+        model = glm::mat4(1.0f);
+        model = glm::translate(model,glm::vec3(0.0f,-8.69f,0.0f));
+        model = glm::scale(model, glm::vec3(0.45));
+        ourShader.setMat4("model", model);
+
+        tavern.Draw(ourShader);
+
+        // model matrix for cottage
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(8.0f, -8.69f, -11.0f));
+        model = glm::scale(model, glm::vec3(0.003));
+        ourShader.setMat4("model", model);
+
+        cottage.Draw(ourShader);
+
+//        model = glm::mat4(1.0f);
+//        model = glm::translate(model, programState->backpackPosition);
+//        model = glm::scale(model, glm::vec3(programState->backpackScale));
+//        ourShader.setMat4("model", model);
 
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
