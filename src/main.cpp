@@ -289,6 +289,10 @@ int main() {
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // car attributes
+        double pace = 3.5f;
+        double position = -10.0f + remainder_double(pace*glfwGetTime(), 44);
+
         // don't forget to enable shader before setting uniforms
         ourShader.use();
         pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
@@ -307,6 +311,18 @@ int main() {
         ourShader.setVec3("dirLight.ambient", 0.2f, 0.2f, 0.2f);
         ourShader.setVec3("dirLight.diffuse", 0.0f, 0.0f, 0.0f);
         ourShader.setVec3("dirLight.specular", 0.0f, 0.0f, 0.0f);
+
+        // Implementing CarLights
+        ourShader.setVec3("spotLight.position", glm::vec3(position + 0.3f, -8.5f, -5.0f));
+        ourShader.setVec3("spotLight.direction", glm::vec3(1.0f, 0.0f, 0.0f));
+        ourShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+        ourShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+        ourShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+        ourShader.setFloat("spotLight.constant", 1.0f);
+        ourShader.setFloat("spotLight.linear", 0.4);
+        ourShader.setFloat("spotLight.quadratic", 0.032);
+        ourShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(27.5f)));
+        ourShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(33.0f)));
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
@@ -350,8 +366,7 @@ int main() {
             road.Draw(ourShader);
         }
         // model matrix for car
-        double pace = 7.0f;
-        double position = -10.0f + remainder_double(pace*glfwGetTime(), 44);
+
 
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(position, -8.68, -5.0f));
