@@ -420,10 +420,13 @@ int main() {
         model = glm::mat4(1.0f);
         blendingShader.setMat4("projection", projection);
         blendingShader.setMat4("view", view);
+
+        float rotation_speed = ((float)sin(glfwGetTime()) + M_PI) / 2.0;
         for (int i = 0; i < flowersPos.size(); i++) {
             model = glm::mat4 (1.0f);
             model = glm::translate(model, glm::vec3(flowersPos[i].x, -8.6f, flowersPos[i].y));
-            model = glm::rotate(model, -1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::rotate(model, rotation_speed, glm::vec3(1.0f, 0.0f, 0.0f));
+            //model = glm::rotate(model, rotation_speed_2, glm::vec3(0.0f, 1.0f, 0.0f));
             model = glm::scale(model, glm::vec3(0.25));
             blendingShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 6);
