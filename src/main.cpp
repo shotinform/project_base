@@ -17,13 +17,10 @@
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-
+unsigned int loadTexture(const char *path);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
-
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
-
 void processInput(GLFWwindow *window);
-
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 
 // settings
@@ -140,6 +137,37 @@ int main() {
         return -1;
     }
 
+    float flowerVertices[] = {
+            // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
+            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+            0.0f, -0.5f,  0.0f,  0.0f,  1.0f,
+            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+
+            0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
+            1.0f, -0.5f,  0.0f,  1.0f,  1.0f,
+            1.0f,  0.5f,  0.0f,  1.0f,  0.0f
+    };
+
+    vector<glm::vec2> flowersPos {
+            glm::vec2(16.07f, -9.34f),
+            glm::vec2(17.24f, -10.2f),
+            glm::vec2(21.03f, -9.09f),
+            glm::vec2(24.65, -9.89)
+    };
+
+    // flower Settings
+    unsigned int flowerVAO, flowerVBO;
+    glGenVertexArrays(1, &flowerVAO);
+    glGenBuffers(1, &flowerVBO);
+    glBindVertexArray(flowerVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, flowerVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(flowerVertices), flowerVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glBindVertexArray(0);
+
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
 
@@ -167,6 +195,7 @@ int main() {
     // -------------------------
     Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
     Shader skyboxShader("resources/shaders/skybox.vs", "resources/shaders/skybox.fs");
+    Shader blendingShader("resources/shaders/blending.vs", "resources/shaders/blending.fs");
 
     // load models
     // -----------
@@ -184,6 +213,8 @@ int main() {
 
     Model car("resources/objects/car2/Off-Road.obj");
     road.SetShaderTextureNamePrefix("material.");
+
+    //
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(10.0f, 10.0, 0.0);
@@ -269,6 +300,12 @@ int main() {
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
 
+    // loading textures
+    unsigned int flowerTexture = loadTexture(FileSystem::getPath("resources/textures/My project.png").c_str());
+
+    blendingShader.use();
+    blendingShader.setInt("texture1", 0);
+
     // render loop
     // -----------
     programState->camera.Position = glm::vec3 (0.0f);
@@ -282,7 +319,6 @@ int main() {
         // input
         // -----
         processInput(window);
-
 
         // render
         // ------
@@ -345,7 +381,6 @@ int main() {
         model = glm::translate(model,glm::vec3(0.0f,-8.69f,0.0f));
         model = glm::scale(model, glm::vec3(0.45));
         ourShader.setMat4("model", model);
-
         tavern.Draw(ourShader);
 
         // model matrix for cottage
@@ -353,7 +388,6 @@ int main() {
         model = glm::translate(model, glm::vec3(8.0f, -8.69f, -11.0f));
         model = glm::scale(model, glm::vec3(0.003));
         ourShader.setMat4("model", model);
-
         cottage.Draw(ourShader);
 
         // model matrix for road
@@ -367,19 +401,33 @@ int main() {
         }
         // model matrix for car
 
-
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(position, -8.68, -5.0f));
         model = glm::rotate(model, 1.57f, glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.25));
         ourShader.setMat4("model", model);
-
         car.Draw(ourShader);
 
 //        model = glm::mat4(1.0f);
 //        model = glm::translate(model, programState->backpackPosition);
 //        model = glm::scale(model, glm::vec3(programState->backpackScale));
 //        ourShader.setMat4("model", model);
+
+        // Drawing flowers
+        glBindTexture(GL_TEXTURE_2D, flowerTexture);
+        glBindVertexArray(flowerVAO);
+        blendingShader.use();
+        model = glm::mat4(1.0f);
+        blendingShader.setMat4("projection", projection);
+        blendingShader.setMat4("view", view);
+        for (int i = 0; i < flowersPos.size(); i++) {
+            model = glm::mat4 (1.0f);
+            model = glm::translate(model, glm::vec3(flowersPos[i].x, -8.6f, flowersPos[i].y));
+            model = glm::rotate(model, -1.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+            model = glm::scale(model, glm::vec3(0.25));
+            blendingShader.setMat4("model", model);
+            glDrawArrays(GL_TRIANGLES, 0, 6);
+        }
 
         // draw skybox as last
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
@@ -479,7 +527,6 @@ void DrawImGui(ProgramState *programState) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-
     {
         static float f = 0.0f;
         ImGui::Begin("Hello window");
@@ -551,3 +598,39 @@ unsigned int loadCubemap(vector<std::string> faces)
     return textureID;
 }
 
+unsigned int loadTexture(char const * path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
+}
