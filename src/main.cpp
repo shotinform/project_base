@@ -15,6 +15,7 @@
 #include <learnopengl/model.h>
 
 #include <iostream>
+#include <random>
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 unsigned int loadTexture(const char *path);
@@ -148,12 +149,16 @@ int main() {
             1.0f,  0.5f,  0.0f,  1.0f,  0.0f
     };
 
-    vector<glm::vec2> flowersPos {
-            glm::vec2(16.07f, -9.34f),
-            glm::vec2(17.24f, -10.2f),
-            glm::vec2(21.03f, -9.09f),
-            glm::vec2(24.65, -9.89)
-    };
+    vector<glm::vec2> flowersPos;
+    std::random_device rd;  // Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+    std::uniform_real_distribution<> dis(-18.0f, 18.0f);
+
+    for (int i=0; i < 150; i++){
+        float z_coord = dis(gen) - 1.24f;
+        if (z_coord < -7.00f || z_coord > -4.00f)
+            flowersPos.push_back(glm::vec2(dis(gen) + 11.96f, z_coord));
+    }
 
     // flower Settings
     unsigned int flowerVAO, flowerVBO;
@@ -424,7 +429,7 @@ int main() {
         float rotation_speed = ((float)sin(glfwGetTime()) + M_PI) / 2.0;
         for (int i = 0; i < flowersPos.size(); i++) {
             model = glm::mat4 (1.0f);
-            model = glm::translate(model, glm::vec3(flowersPos[i].x, -8.6f, flowersPos[i].y));
+            model = glm::translate(model, glm::vec3(flowersPos[i].x, -8.65f, flowersPos[i].y));
             model = glm::rotate(model, rotation_speed, glm::vec3(1.0f, 0.0f, 0.0f));
             //model = glm::rotate(model, rotation_speed_2, glm::vec3(0.0f, 1.0f, 0.0f));
             model = glm::scale(model, glm::vec3(0.25));
