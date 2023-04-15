@@ -138,6 +138,7 @@ int main() {
         return -1;
     }
 
+
     float flowerVertices[] = {
             // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
             0.0f,  0.5f,  0.0f,  0.0f,  0.0f,
@@ -195,6 +196,8 @@ int main() {
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 
     // build and compile shaders
     // -------------------------
@@ -388,13 +391,6 @@ int main() {
         ourShader.setMat4("model", model);
         tavern.Draw(ourShader);
 
-        // model matrix for cottage
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(8.0f, -8.69f, -11.0f));
-        model = glm::scale(model, glm::vec3(0.003));
-        ourShader.setMat4("model", model);
-        cottage.Draw(ourShader);
-
         // model matrix for road
         for (int i=0; i < 16; i++)
         {
@@ -405,13 +401,22 @@ int main() {
             road.Draw(ourShader);
         }
         // model matrix for car
-
+        glDisable(GL_CULL_FACE);
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(position, -8.68, -5.0f));
         model = glm::rotate(model, 1.57f, glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.25));
         ourShader.setMat4("model", model);
         car.Draw(ourShader);
+        glEnable(GL_CULL_FACE);
+
+        // model matrix for cottage
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(8.0f, -8.69f, -11.0f));
+        model = glm::scale(model, glm::vec3(0.003));
+        ourShader.setMat4("model", model);
+        cottage.Draw(ourShader);
+
 
 //        model = glm::mat4(1.0f);
 //        model = glm::translate(model, programState->backpackPosition);
@@ -419,6 +424,7 @@ int main() {
 //        ourShader.setMat4("model", model);
 
         // Drawing flowers
+        glDisable(GL_CULL_FACE); // GL_CULL_FACE doesn't work because of flowers rotation
         glBindTexture(GL_TEXTURE_2D, flowerTexture);
         glBindVertexArray(flowerVAO);
         blendingShader.use();
@@ -436,6 +442,7 @@ int main() {
             blendingShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 6);
         }
+        glEnable(GL_CULL_FACE);
 
         // draw skybox as last
         glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when values are equal to depth buffer's content
