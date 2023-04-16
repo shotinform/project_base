@@ -222,12 +222,15 @@ int main() {
     Model car("resources/objects/car2/Off-Road.obj");
     road.SetShaderTextureNamePrefix("material.");
 
+    Model lamp("resources/objects/lamp/street lamp.obj");
+    road.SetShaderTextureNamePrefix("material.");
+
     //
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(10.0f, 10.0, 0.0);
     pointLight.ambient = glm::vec3(0.1, 0.1, 0.1);
-    pointLight.diffuse = glm::vec3(0.6, 0.6, 0.6);
+    pointLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
     pointLight.specular = glm::vec3(1.0, 1.0, 1.0);
 
     pointLight.constant = 1.0f;
@@ -339,7 +342,7 @@ int main() {
 
         // don't forget to enable shader before setting uniforms
         ourShader.use();
-        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
+        pointLight.position = glm::vec3(3.058f, -6.00f, -3.061f);
         ourShader.setVec3("pointLight.position", pointLight.position);
         ourShader.setVec3("pointLight.ambient", pointLight.ambient);
         ourShader.setVec3("pointLight.diffuse", pointLight.diffuse);
@@ -404,7 +407,7 @@ int main() {
         glDisable(GL_CULL_FACE);
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(position, -8.68, -5.0f));
-        model = glm::rotate(model, 1.57f, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, (float)(M_PI/2.0), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.25));
         ourShader.setMat4("model", model);
         car.Draw(ourShader);
@@ -417,6 +420,14 @@ int main() {
         ourShader.setMat4("model", model);
         cottage.Draw(ourShader);
 
+        // model matrix for lamp
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(3.00f, -8.68f, -3.00f));
+        model = glm::rotate(model, (float)(-M_PI/2.0), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::scale(model, glm::vec3(programState->backpackScale));
+        ourShader.setMat4("model", model);
+        lamp.Draw(ourShader);
 
 //        model = glm::mat4(1.0f);
 //        model = glm::translate(model, programState->backpackPosition);
@@ -470,7 +481,9 @@ int main() {
     }
 
     glDeleteVertexArrays(1, &skyboxVAO);
+    glDeleteVertexArrays(1, &flowerVAO);
     glDeleteBuffers(1, &skyboxVBO);
+    glDeleteBuffers(1, &flowerVBO);
 
 
     programState->SaveToFile("resources/program_state.txt");
