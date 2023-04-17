@@ -402,7 +402,10 @@ int main() {
 
         // render
         // ------
-        glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
+        if (bloom)
+            glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        else
+            glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // 1. render scene into floating point framebuffer
@@ -416,6 +419,7 @@ int main() {
 
         // don't forget to enable shader before setting uniforms
         ourShader.use();
+        ourShader.setBool("bloom", bloom);
         pointLight.position = glm::vec3(3.058f, -6.00f, -3.061f);
         ourShader.setVec3("pointLight.position", pointLight.position);
         ourShader.setVec3("pointLight.ambient", pointLight.ambient);
@@ -429,8 +433,8 @@ int main() {
 
         // Implementing dirLight # I done
         ourShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-        ourShader.setVec3("dirLight.ambient", 0.01f, 0.01f, 0.01f);
-        ourShader.setVec3("dirLight.diffuse", 0.0f, 0.0f, 0.0f);
+        ourShader.setVec3("dirLight.ambient", 0.125f, 0.125f, 0.125f);
+        ourShader.setVec3("dirLight.diffuse", 0.25f, 0.25f, 0.25f);
         ourShader.setVec3("dirLight.specular", 0.0f, 0.0f, 0.0f);
 
         // Implementing CarLights
@@ -539,7 +543,8 @@ int main() {
         glBindVertexArray(skyboxVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        if (bloom == true)
+            glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
         glDepthFunc(GL_LESS); // set depth function back to default
 
