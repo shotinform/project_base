@@ -30,7 +30,6 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 unsigned int quadVAO = 0;
 unsigned int quadVBO;
-bool bloom = true;
 bool bloomKeyPressed = false;
 float exposure = 0.75f;
 
@@ -84,8 +83,10 @@ struct ProgramState {
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
-    glm::vec3 backpackPosition = glm::vec3(0.0f);
-    float backpackScale = 1.0f;
+    //glm::vec3 backpackPosition = glm::vec3(0.0f);  Maybe it will be useful for program upgrading
+    //float backpackScale = 1.0f;
+    float carSpeed;
+    bool bloom;
     PointLight pointLight;
     ProgramState()
             : camera(glm::vec3(0.0f, 0.0f, 3.0f)) {}
@@ -167,9 +168,17 @@ int main() {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+    // Initializing program state
+    programState = new ProgramState;
+    programState->LoadFromFile("resources/program_state.txt");
+    if (programState->ImGuiEnabled) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
 
     // loop constants
-    double carSpeed = 3.5f;
+
+    programState->bloom = false;
+    programState->carSpeed = 3.5f;
     double carPos;
     int roadNum = 16;
     glm::vec3 islandPos = glm::vec3(-30.0f, 135.0f, -31.0f);
@@ -213,11 +222,7 @@ int main() {
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     stbi_set_flip_vertically_on_load(true);
 
-    programState = new ProgramState;
-    programState->LoadFromFile("resources/program_state.txt");
-    if (programState->ImGuiEnabled) {
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-    }
+
     // Init Imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -432,7 +437,7 @@ int main() {
 
     // render loop
     // -----------
-    programState->camera.Position = glm::vec3 (0.0f);
+    //programState->camera.Position = glm::vec3 (0.0f);
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
         // --------------------
@@ -446,7 +451,7 @@ int main() {
 
         // render
         // ------
-        if (bloom)
+        if (programState->bloom)
             glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         else
             glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
@@ -457,11 +462,11 @@ int main() {
         glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        carPos = -10.0f + remainder_double(carSpeed*glfwGetTime(), 44);
+        carPos = -10.0f + remainder_double(programState->carSpeed * glfwGetTime(), 44);
 
         // don't forget to enable shader before setting uniforms
         ourShader.use();
-        ourShader.setBool("bloom", bloom);
+        ourShader.setBool("bloom", programState->bloom);
 
         ourShader.setVec3("pointLight.position", pointLight.position);
         ourShader.setVec3("pointLight.ambient", pointLight.ambient);
@@ -544,7 +549,7 @@ int main() {
         model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(3.00f, groundLvl, -3.00f));
         model = glm::rotate(model, (float)(-M_PI/2.0), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::scale(model, glm::vec3(programState->backpackScale));
+        model = glm::scale(model, glm::vec3(1.0f));
         ourShader.setMat4("model", model);
         lamp.Draw(ourShader);
 
@@ -578,7 +583,7 @@ int main() {
         glBindVertexArray(skyboxVAO);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-        if (bloom == true)
+        if (programState->bloom == true)
             glDrawArrays(GL_TRIANGLES, 0, 36);
         glBindVertexArray(0);
         glDepthFunc(GL_LESS); // set depth function back to default
@@ -608,11 +613,11 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, colorBuffers[0]);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, pingpongColorbuffers[!horizontal]);
-        shaderBloomFinal.setInt("bloom", bloom);
+        shaderBloomFinal.setInt("bloom", programState->bloom);
         shaderBloomFinal.setFloat("exposure", exposure);
         renderQuad();
 
-        std::cout << "bloom: " << (bloom ? "on" : "off") << "| exposure: " << exposure << std::endl;
+        std::cout << "bloom: " << (programState->bloom ? "on" : "off") << "| exposure: " << exposure << std::endl;
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -665,7 +670,7 @@ void processInput(GLFWwindow *window) {
 
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && !bloomKeyPressed)
     {
-        bloom = !bloom;
+        programState->bloom = !programState->bloom;
         bloomKeyPressed = true;
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE)
@@ -726,12 +731,13 @@ void DrawImGui(ProgramState *programState) {
 
     {
         static float f = 0.0f;
-        ImGui::Begin("Hello window");
-        ImGui::Text("Hello text");
+        ImGui::Begin("Menu");
+        ImGui::Text("Program settings");
+        ImGui::Checkbox("Day-night switch", &programState->bloom);
         ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
         ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
-        ImGui::DragFloat("Backpack scale", &programState->backpackScale, 0.05, 0.001, 4.0);
+        //ImGui::DragFloat3("Backpack position", (float*)&programState->backpackPosition);
+        ImGui::DragFloat("Car speed", &programState->carSpeed, 0.2, 1.0f, 10.0f);
 
         ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
