@@ -32,7 +32,7 @@ unsigned int quadVAO = 0;
 unsigned int quadVBO;
 bool bloom = true;
 bool bloomKeyPressed = false;
-float exposure = 1.0f;
+float exposure = 0.75f;
 
 // camera
 
@@ -54,6 +54,30 @@ struct PointLight {
     float linear;
     float quadratic;
 };
+
+struct DirLight {
+    glm::vec3 direction;
+
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+};
+
+struct SpotLight {
+    glm::vec3 position;
+    glm::vec3 direction;
+    float cutOff;
+    float outerCutOff;
+
+    float constant;
+    float linear;
+    float quadratic;
+
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+};
+
 
 struct ProgramState {
     glm::vec3 clearColor = glm::vec3(0);
@@ -144,6 +168,12 @@ int main() {
         return -1;
     }
 
+    // loop constants
+    double carSpeed = 3.5f;
+    double carPos;
+    int roadNum = 16;
+    glm::vec3 islandPos = glm::vec3(-30.0f, 135.0f, -31.0f);
+    float groundLvl = -8.68f;
 
     float flowerVertices[] = {
             // positions         // texture Coords (swapped y coordinates because texture is flipped upside down)
@@ -193,8 +223,6 @@ int main() {
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     (void) io;
-
-
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
@@ -288,10 +316,10 @@ int main() {
             std::cout << "Framebuffer not complete!" << std::endl;
     }
 
-    //
+    // Settings for lights
 
     PointLight& pointLight = programState->pointLight;
-    pointLight.position = glm::vec3(10.0f, 10.0, 0.0);
+    pointLight.position = glm::vec3(3.058f, -5.90f, -3.061f);;
     pointLight.ambient = glm::vec3(0.01, 0.01, 0.01);
     pointLight.diffuse = glm::vec3(5.0, 5.0, 5.0);
     pointLight.specular = glm::vec3(1.0, 1.0, 1.0);
@@ -299,6 +327,23 @@ int main() {
     pointLight.constant = 1.0f;
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
+
+    DirLight dirLight;
+    dirLight.direction = glm::vec3(-0.2f, -1.0f, -0.3f);
+    dirLight.ambient = glm::vec3(0.125f, 0.125f, 0.125f);
+    dirLight.diffuse = glm::vec3(0.25f, 0.25f, 0.25f);
+    dirLight.specular = glm::vec3(0.0f, 0.0f, 0.0f);
+
+    SpotLight carLight;
+    carLight.direction = glm::vec3(1.0f, 0.0f, 0.0f);
+    carLight.ambient = glm::vec3(0.0f, 0.0f, 0.0f);
+    carLight.diffuse = glm::vec3(1.0f, 1.0f, 1.0f);
+    carLight.specular = glm::vec3(1.0f, 1.0f, 1.0f);
+    carLight.constant = 1.0f;
+    carLight.linear = 0.4f;
+    carLight.quadratic = 0.032f;
+    carLight.cutOff = glm::cos(glm::radians(27.5f));
+    carLight.outerCutOff = glm::cos(glm::radians(33.0f));
 
     // Settings for Skybox
 
@@ -347,7 +392,7 @@ int main() {
             1.0f, -1.0f,  1.0f
     };
 
-    // Skybox VAO
+    // Skybox buffers
 
     unsigned int skyboxVAO, skyboxVBO;
     glGenVertexArrays(1, &skyboxVAO);
@@ -358,7 +403,7 @@ int main() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 
-    // SB textures
+    // loading textures
     vector<std::string> faces
             {
                     FileSystem::getPath("resources/textures/skybox/right.jpg"),
@@ -370,12 +415,11 @@ int main() {
             };
 
     unsigned int cubemapTexture = loadCubemap(faces);
+    unsigned int flowerTexture = loadTexture(FileSystem::getPath("resources/textures/My project.png").c_str());
 
+    // Uniforms for shaders
     skyboxShader.use();
     skyboxShader.setInt("skybox", 0);
-
-    // loading textures
-    unsigned int flowerTexture = loadTexture(FileSystem::getPath("resources/textures/My project.png").c_str());
 
     blendingShader.use();
     blendingShader.setInt("texture1", 0);
@@ -413,14 +457,12 @@ int main() {
         glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // car attributes
-        double pace = 3.5f;
-        double position = -10.0f + remainder_double(pace*glfwGetTime(), 44);
+        carPos = -10.0f + remainder_double(carSpeed*glfwGetTime(), 44);
 
         // don't forget to enable shader before setting uniforms
         ourShader.use();
         ourShader.setBool("bloom", bloom);
-        pointLight.position = glm::vec3(3.058f, -6.00f, -3.061f);
+
         ourShader.setVec3("pointLight.position", pointLight.position);
         ourShader.setVec3("pointLight.ambient", pointLight.ambient);
         ourShader.setVec3("pointLight.diffuse", pointLight.diffuse);
@@ -431,23 +473,23 @@ int main() {
         ourShader.setVec3("viewPosition", programState->camera.Position);
         ourShader.setFloat("material.shininess", 32.0f);
 
-        // Implementing dirLight # I done
-        ourShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-        ourShader.setVec3("dirLight.ambient", 0.125f, 0.125f, 0.125f);
-        ourShader.setVec3("dirLight.diffuse", 0.25f, 0.25f, 0.25f);
-        ourShader.setVec3("dirLight.specular", 0.0f, 0.0f, 0.0f);
+        // Implementing dirLight
+        ourShader.setVec3("dirLight.direction", dirLight.direction);
+        ourShader.setVec3("dirLight.ambient", dirLight.ambient);
+        ourShader.setVec3("dirLight.diffuse", dirLight.diffuse);
+        ourShader.setVec3("dirLight.specular", dirLight.specular);
 
         // Implementing CarLights
-        ourShader.setVec3("spotLight.position", glm::vec3(position + 0.3f, -8.5f, -5.0f));
-        ourShader.setVec3("spotLight.direction", glm::vec3(1.0f, 0.0f, 0.0f));
-        ourShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
-        ourShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
-        ourShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
-        ourShader.setFloat("spotLight.constant", 1.0f);
-        ourShader.setFloat("spotLight.linear", 0.4);
-        ourShader.setFloat("spotLight.quadratic", 0.032);
-        ourShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(27.5f)));
-        ourShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(33.0f)));
+        ourShader.setVec3("spotLight.position", glm::vec3(carPos + 0.3f, groundLvl + 0.18f, -5.0f));
+        ourShader.setVec3("spotLight.direction", carLight.direction);
+        ourShader.setVec3("spotLight.ambient", carLight.ambient);
+        ourShader.setVec3("spotLight.diffuse", carLight.diffuse);
+        ourShader.setVec3("spotLight.specular", carLight.specular);
+        ourShader.setFloat("spotLight.constant", carLight.constant);
+        ourShader.setFloat("spotLight.linear", carLight.linear);
+        ourShader.setFloat("spotLight.quadratic", carLight.quadratic);
+        ourShader.setFloat("spotLight.cutOff", carLight.cutOff);
+        ourShader.setFloat("spotLight.outerCutOff", carLight.outerCutOff);
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
@@ -459,24 +501,23 @@ int main() {
         // model matrix for island
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model,
-                               glm::vec3(-30.0f, 135.0f, -31.0f)); // translate it down so it's at the center of the scene
-        //model = glm::rotate(model, (float)3.14, glm::vec3(1.0f, 0.0f, 0.0f));
+                               islandPos); // translate it down so it's at the center of the scene
         model = glm::scale(model, glm::vec3(1));    // it's a bit too big for our scene, so scale it down
         ourShader.setMat4("model", model);
         island.Draw(ourShader);
 
         // model matrix for tavern
         model = glm::mat4(1.0f);
-        model = glm::translate(model,glm::vec3(0.0f,-8.69f,0.0f));
+        model = glm::translate(model,glm::vec3(0.0f,groundLvl - 0.01f,0.0f));
         model = glm::scale(model, glm::vec3(0.45));
         ourShader.setMat4("model", model);
         tavern.Draw(ourShader);
 
         // model matrix for road
-        for (int i=0; i < 16; i++)
+        for (int i=0; i < roadNum; i++)
         {
             model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(-9.8f + i * 2.82f, -8.69f, -5.5f));
+            model = glm::translate(model, glm::vec3(-9.8f + i * 2.82f, groundLvl - 0.01f, -5.5f));
             model = glm::scale(model, glm::vec3(0.2f));
             ourShader.setMat4("model", model);
             road.Draw(ourShader);
@@ -484,7 +525,7 @@ int main() {
         // model matrix for car
         glDisable(GL_CULL_FACE);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(position, -8.68, -5.0f));
+        model = glm::translate(model, glm::vec3(carPos, groundLvl, -5.0f));
         model = glm::rotate(model, (float)(M_PI/2.0), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(0.25));
         ourShader.setMat4("model", model);
@@ -493,7 +534,7 @@ int main() {
 
         // model matrix for cottage
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(8.0f, -8.69f, -11.0f));
+        model = glm::translate(model, glm::vec3(8.0f, groundLvl - 0.01f, -11.0f));
         model = glm::scale(model, glm::vec3(0.003));
         ourShader.setMat4("model", model);
         cottage.Draw(ourShader);
@@ -501,16 +542,11 @@ int main() {
         // model matrix for lamp
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(3.00f, -8.68f, -3.00f));
+        model = glm::translate(model, glm::vec3(3.00f, groundLvl, -3.00f));
         model = glm::rotate(model, (float)(-M_PI/2.0), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::scale(model, glm::vec3(programState->backpackScale));
         ourShader.setMat4("model", model);
         lamp.Draw(ourShader);
-
-//        model = glm::mat4(1.0f);
-//        model = glm::translate(model, programState->backpackPosition);
-//        model = glm::scale(model, glm::vec3(programState->backpackScale));
-//        ourShader.setMat4("model", model);
 
         // Drawing flowers
         glDisable(GL_CULL_FACE); // GL_CULL_FACE doesn't work because of flowers rotation
@@ -524,9 +560,8 @@ int main() {
         float rotation_speed = ((float)sin(glfwGetTime()) + M_PI) / 2.0;
         for (int i = 0; i < flowersPos.size(); i++) {
             model = glm::mat4 (1.0f);
-            model = glm::translate(model, glm::vec3(flowersPos[i].x, -8.65f, flowersPos[i].y));
+            model = glm::translate(model, glm::vec3(flowersPos[i].x, groundLvl + 0.03f, flowersPos[i].y));
             model = glm::rotate(model, rotation_speed, glm::vec3(1.0f, 0.0f, 0.0f));
-            //model = glm::rotate(model, rotation_speed_2, glm::vec3(0.0f, 1.0f, 0.0f));
             model = glm::scale(model, glm::vec3(0.25));
             blendingShader.setMat4("model", model);
             glDrawArrays(GL_TRIANGLES, 0, 6);
